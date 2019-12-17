@@ -1,0 +1,14 @@
+{
+  "mail": {
+    "subject": "Сообщение с сайта",
+    "smtp": {
+      "host": "smtp.googlemail.com",
+      "port": 587,
+      "secure": false,
+      "auth": {
+        "user": "micoretest@gmail.com",
+        "pass": "MiCore150317"
+      }
+    }
+  }
+}
