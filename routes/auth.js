@@ -6,15 +6,12 @@ const sendGrid = require('nodemailer-sendgrid-transport')
 const bcrypt = require('bcryptjs')
 const User = require('../models/user')
 const keys = require('../keys')
+const config = require('../config.json')
 
 const regEmail = require('../emails/registration')
 const resetEmail = require('../emails/reset')
 
-const transporter = nodemailer.createTransport(sendGrid({
-  auth: {
-    api_key: keys.SENDGRID_API_KEY
-  }
-}))
+const transporter = nodemailer.createTransport(config.mail.smtp)
 
 router.get('/login', async (req, res) => {
   res.render('auth/login', {
@@ -94,6 +91,34 @@ router.get('/reset', async (req, res) => {
   })
 })
 
+router.get('/password/:token', async (req, res) => {
+  const token = req.params.token
+  if(!token) {
+    return res.redirect('/auth/login')
+  }
+  try{
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExp: {$gt: Date.now()}
+    })
+
+    if(!user) {
+      return res.redirect('/auth/login')
+    } else {
+      res.render('auth/password', {
+        pageTitle: 'Set new password',
+        error: req.flash('error'),
+        userId: user._id.toString(),
+        token
+      })
+    }
+    
+
+  } catch(err) {
+    console.log(err)
+  }
+})
+
 router.post('/reset', (req, res) => {
   try{
     crypto.randomBytes(32, async (err, buffer) => {
@@ -119,6 +144,31 @@ router.post('/reset', (req, res) => {
       }
     })
   } catch (err){
+    console.log(err)
+  }
+})
+
+router.post('/password', async (req, res) => {
+  try{
+    const user = await User.findOne({
+      _id: req.body.userId,
+      resetToken: req.body.token,
+      resetTokenExp: {$gt: Date.now()}
+    })
+
+    if(user) {
+      user.password = await bcrypt.hash(req.body.password, 10)
+      user.resetToken = undefined
+      user.resetTokenExp = undefined
+
+      await user.save()
+      res.redirect('/auth/login')
+
+    } else {
+      req.flash('loginError', 'Wrong resetTokenExp')
+      res.redirect('/auth/login')
+    }
+  } catch(err) {
     console.log(err)
   }
 })
